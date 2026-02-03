@@ -30,4 +30,8 @@ app.post("/webhook", async (c) => {
   for (const client of clients) {
     client(JSON.stringify(payload));
   }
+
+  return c.json({ received: true });
 });
+
+export default app;
