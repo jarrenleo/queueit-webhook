@@ -7,6 +7,8 @@ const clients: Set<(data: string) => void> = new Set();
 
 app.get("/events", (c) => {
   return streamSSE(c, async (stream) => {
+    await stream.writeSSE({ data: "connected", event: "connected" });
+
     const send = (data: string) => {
       stream.writeSSE({ data, event: "webhook" });
     };
