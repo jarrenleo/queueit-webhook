@@ -5,23 +5,24 @@ const app = new Hono();
 
 const clients: Set<(data: string) => void> = new Set();
 
-app.get("/events", (c) => {
+app.get("/sse", (c) => {
   return streamSSE(c, async (stream) => {
-    await stream.writeSSE({ data: "connected", event: "connected" });
-
-    const send = (data: string) => {
-      stream.writeSSE({ data, event: "webhook" });
+    const client = (data: string) => {
+      stream.writeSSE({ data, event: "sse" });
     };
 
-    clients.add(send);
+    clients.add(client);
 
     stream.onAbort(() => {
-      clients.delete(send);
+      clients.delete(client);
     });
 
     while (true) {
-      await stream.sleep(30000);
-      await stream.writeSSE({ data: "ping", event: "keepalive" });
+      await stream.writeSSE({
+        data: "ping",
+        event: "keepalive",
+      });
+      await stream.sleep(1000);
     }
   });
 });
