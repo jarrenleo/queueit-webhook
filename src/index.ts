@@ -1,9 +1,12 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { createClient } from "redis";
 import { processData, type ProcessedData } from "./helper";
 
 const app = new Hono();
+
+app.use("*", cors());
 
 const redis = createClient({
   url: process.env.REDIS_URL,
