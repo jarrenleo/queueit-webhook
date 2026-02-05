@@ -16,7 +16,7 @@ redis.on("error", (error) => console.error("Redis error:", error));
 
 // Redis keys
 const ITEMS_DATA_KEY = "items:data"; // Hash map (id : data object)
-const ITEMS_ORDER_KEY = "items:order"; // Array of IDs (oldest -> latest)
+const ITEMS_ORDER_KEY = "items:order"; // Array of IDs (newest -> oldest)
 
 const CLEANUP_INTERVAL = 60 * 1000;
 const MAX_DATA_COUNT = 30;
@@ -32,15 +32,15 @@ function broadcast(data: object, event: string): void {
   }
 }
 
-// Get all items in order
-async function getData(): Promise<ProcessedData[]> {
-  const ids = await redis.lRange(ITEMS_ORDER_KEY, 0, -1);
-  if (!ids.length) return [];
+// Get all items as hash map
+async function getData(): Promise<Record<string, ProcessedData>> {
+  const data = await redis.hGetAll(ITEMS_DATA_KEY);
 
-  // Single call to get all items at once
-  const data = await redis.hmGet(ITEMS_DATA_KEY, ids);
-
-  return data.filter((d): d is string => d !== null).map((d) => JSON.parse(d));
+  const result: Record<string, ProcessedData> = {};
+  for (const [id, value] of Object.entries(data)) {
+    result[id] = JSON.parse(value);
+  }
+  return result;
 }
 
 // Increment click count for an item
@@ -61,37 +61,37 @@ async function cleanup() {
   if (!count) return;
 
   if (count <= MAX_DATA_COUNT) {
-    // Get the last (most recent) webhook's ID
-    const lastId = await redis.lIndex(ITEMS_ORDER_KEY, -1);
-    if (!lastId) return;
+    // Get the first (most recent) webhook's ID (newest at front)
+    const newestId = await redis.lIndex(ITEMS_ORDER_KEY, 0);
+    if (!newestId) return;
 
-    // Get the last webhook's data
-    const lastItemData = await redis.hGet(ITEMS_DATA_KEY, lastId);
-    if (!lastItemData) return;
+    // Get the newest webhook's data
+    const newestItemData = await redis.hGet(ITEMS_DATA_KEY, newestId);
+    if (!newestItemData) return;
 
-    // Parse the last webhook's data
-    const lastItem: ProcessedData = JSON.parse(lastItemData);
+    // Parse the newest webhook's data
+    const newestItem: ProcessedData = JSON.parse(newestItemData);
 
     const tenMinutes = 10 * 60 * 1000;
 
-    // Check if last webhook is older than 10 minutes
-    if (Date.now() - lastItem.timestamp <= tenMinutes) return;
+    // Check if newest webhook is older than 10 minutes
+    if (Date.now() - newestItem.timestamp <= tenMinutes) return;
     // Clear everything
     await redis.del(ITEMS_DATA_KEY);
     await redis.del(ITEMS_ORDER_KEY);
 
-    broadcast({ success: true, data: [] }, "cleanup");
+    broadcast({ success: true, data: {} }, "cleanup");
   } else {
     const toRemove = count - MAX_DATA_COUNT;
 
-    // Get the IDs to remove (oldest at the front)
-    const idsToRemove = await redis.lRange(ITEMS_ORDER_KEY, 0, toRemove - 1);
+    // Get the IDs to remove (oldest at the back)
+    const idsToRemove = await redis.lRange(ITEMS_ORDER_KEY, -toRemove, -1);
 
-    // Delete from Hash (no trim available, must delete by key)
+    // Delete from Hash
     if (idsToRemove.length > 0) await redis.hDel(ITEMS_DATA_KEY, idsToRemove);
 
-    // Trim List to keep only the newest MAX_DATA_COUNT
-    await redis.lTrim(ITEMS_ORDER_KEY, toRemove, -1);
+    // Trim List to keep only the newest MAX_DATA_COUNT (from front)
+    await redis.lTrim(ITEMS_ORDER_KEY, 0, MAX_DATA_COUNT - 1);
 
     const data = await getData();
     broadcast({ success: true, data }, "cleanup");
@@ -131,15 +131,15 @@ app.get("/sse", (c) => {
   });
 });
 
-// POST /webhook - Receive new webhook data (store in pending queue)
+// POST /webhook - Receive new webhook data
 app.post("/webhook", async (c) => {
   const data = await c.req.json();
   const processedData = processData(data);
   if (!processedData)
     return c.json({ success: false, reason: "invalid_data" }, 400);
 
-  // Store in Redis
-  await redis.rPush(ITEMS_ORDER_KEY, processedData.id);
+  // Store in Redis (push to front so newest is first)
+  await redis.lPush(ITEMS_ORDER_KEY, processedData.id);
   await redis.hSet(
     ITEMS_DATA_KEY,
     processedData.id,
