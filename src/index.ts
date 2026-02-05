@@ -132,6 +132,8 @@ app.get("/sse", (c) => {
 app.post("/webhook", async (c) => {
   const data = await c.req.json();
   const processedData = processData(data);
+  if (!processedData)
+    return c.json({ success: false, reason: "invalid_data" }, 400);
 
   // Store in Redis
   await redis.rPush(ITEMS_ORDER_KEY, processedData.id);

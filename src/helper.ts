@@ -44,7 +44,7 @@ function processTKTData(data: any): ProcessedData {
   };
 }
 
-export function processData(data: any): ProcessedData {
+export function processData(data: any): ProcessedData | null {
   const title = data.embeds?.[0]?.title;
 
   switch (title) {
@@ -55,12 +55,6 @@ export function processData(data: any): ProcessedData {
     case "--Queue SUCCESS--":
       return processTKTData(data);
     default:
-      return {
-        id: "",
-        bot_name: "",
-        link: "",
-        click_count: 0,
-        timestamp: 0,
-      };
+      return null;
   }
 }
