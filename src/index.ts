@@ -120,13 +120,13 @@ app.get("/sse", (c) => {
       clients.delete(client);
     });
 
-    // Keep connection alive
+    // Keep connection alive - ping every 10 seconds to prevent Railway proxy timeout
     while (true) {
       await stream.writeSSE({
         data: "ping",
         event: "keepalive",
       });
-      await stream.sleep(55000);
+      await stream.sleep(10000);
     }
   });
 });
@@ -143,7 +143,7 @@ app.post("/webhook", async (c) => {
   await redis.hSet(
     ITEMS_DATA_KEY,
     processedData.id,
-    JSON.stringify(processedData)
+    JSON.stringify(processedData),
   );
 
   // Broadcast new data to all clients
