@@ -120,13 +120,13 @@ app.get("/sse", (c) => {
       clients.delete(client);
     });
 
-    // Keep connection alive - ping every 10 seconds to prevent Railway proxy timeout
+    // Keep connection alive - ping every 7.5 seconds to prevent Railway proxy timeout
     while (true) {
       await stream.writeSSE({
         data: "ping",
         event: "keepalive",
       });
-      await stream.sleep(10000);
+      await stream.sleep(7500);
     }
   });
 });
