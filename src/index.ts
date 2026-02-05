@@ -32,15 +32,13 @@ function broadcast(data: object, event: string): void {
   }
 }
 
-// Get all items as hash map
-async function getData(): Promise<Record<string, ProcessedData>> {
-  const data = await redis.hGetAll(ITEMS_DATA_KEY);
+// Get all items as sorted array (newest first)
+async function getData(): Promise<ProcessedData[]> {
+  const ids = await redis.lRange(ITEMS_ORDER_KEY, 0, -1);
+  if (!ids.length) return [];
 
-  const result: Record<string, ProcessedData> = {};
-  for (const [id, value] of Object.entries(data)) {
-    result[id] = JSON.parse(value);
-  }
-  return result;
+  const data = await redis.hmGet(ITEMS_DATA_KEY, ids);
+  return data.filter((d): d is string => d !== null).map((d) => JSON.parse(d));
 }
 
 // Increment click count for an item
@@ -80,7 +78,7 @@ async function cleanup() {
     await redis.del(ITEMS_DATA_KEY);
     await redis.del(ITEMS_ORDER_KEY);
 
-    broadcast({ success: true, data: {} }, "cleanup");
+    broadcast({ success: true, data: [] }, "cleanup");
   } else {
     const toRemove = count - MAX_DATA_COUNT;
 
