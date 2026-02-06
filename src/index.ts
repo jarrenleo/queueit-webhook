@@ -33,6 +33,15 @@ function broadcast(data: object, event: string): void {
   }
 }
 
+// PIN validation middleware for protected routes
+function verifyPin(c: any, next: any) {
+  const pin = c.req.header("x-access-pin") || c.req.query("pin");
+  if (pin !== process.env.ACCESS_PIN)
+    return c.json({ success: false, reason: "unauthorized" }, 401);
+
+  return next();
+}
+
 // Get all items as sorted array (newest first)
 async function getData(): Promise<ProcessedData[]> {
   const ids = await redis.lRange(ITEMS_ORDER_KEY, 0, -1);
@@ -97,15 +106,6 @@ async function cleanup() {
 
 // Reset counter every minute
 setInterval(cleanup, CLEANUP_INTERVAL);
-
-// PIN validation middleware for protected routes
-function verifyPin(c: any, next: any) {
-  const pin = c.req.header("x-access-pin") || c.req.query("pin");
-  if (pin !== process.env.ACCESS_PIN)
-    return c.json({ success: false, reason: "unauthorized" }, 401);
-
-  return next();
-}
 
 // GET /data - Return all current items for initial load/refresh
 app.get("/data", verifyPin, async (c) => {
