@@ -98,14 +98,23 @@ async function cleanup() {
 // Reset counter every minute
 setInterval(cleanup, CLEANUP_INTERVAL);
 
+// PIN validation middleware for protected routes
+function verifyPin(c: any, next: any) {
+  const pin = c.req.header("x-access-pin") || c.req.query("pin");
+  if (pin !== process.env.ACCESS_PIN)
+    return c.json({ success: false, reason: "unauthorized" }, 401);
+
+  return next();
+}
+
 // GET /data - Return all current items for initial load/refresh
-app.get("/data", async (c) => {
+app.get("/data", verifyPin, async (c) => {
   const data = await getData();
   return c.json(data);
 });
 
 // GET /sse - SSE stream for real-time updates
-app.get("/sse", (c) => {
+app.get("/sse", verifyPin, (c) => {
   return streamSSE(c, async (stream) => {
     const client = (data: string, event: string) => {
       stream.writeSSE({ data, event });
@@ -158,7 +167,7 @@ app.post("/webhook", async (c) => {
 });
 
 // POST /click/:id - Increment click count
-app.post("/click/:id", async (c) => {
+app.post("/click/:id", verifyPin, async (c) => {
   const id = c.req.param("id");
   const updatedData = await incrementClick(id);
 
