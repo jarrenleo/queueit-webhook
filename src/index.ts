@@ -133,8 +133,7 @@ app.get("/sse", (c) => {
 app.post("/webhook", async (c) => {
   const data = await c.req.json();
   const processedData = processData(data);
-  if (!processedData)
-    return c.json({ success: false, reason: "invalid_data" }, 400);
+  if (!processedData) return c.json({ success: true }, 201);
 
   // Store in Redis (push to front so newest is first)
   await redis.lPush(ITEMS_ORDER_KEY, processedData.id);
@@ -147,7 +146,7 @@ app.post("/webhook", async (c) => {
   // Broadcast new data to all clients
   broadcast(processedData, "new_data");
 
-  return c.json({ success: true });
+  return c.json({ success: true }, 201);
 });
 
 // POST /click/:id - Increment click count
