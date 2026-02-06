@@ -40,7 +40,7 @@ async function processTKTData(data: any): Promise<ProcessedData> {
   const link = fields[6].value.split("||")[1];
   const timestamp = Date.now();
 
-  await sql`INSERT INTO "TKT Records" (id, bot, proxy, timestamp) VALUES (${id}, ${"TKT"}, ${proxy}, ${new Date(timestamp).toISOString()})`;
+  await sql`INSERT INTO "TKT Records" (bot, proxy, timestamp) VALUES (${"TKT"}, ${proxy}, ${new Date(timestamp).toISOString()})`;
 
   return {
     id,
