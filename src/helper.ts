@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import sql from "./db";
 
 export interface ProcessedData {
   id: string;
@@ -32,19 +33,25 @@ function processOWData(data: any): ProcessedData {
   };
 }
 
-function processTKTData(data: any): ProcessedData {
-  const link = data.embeds[0].fields[6].value.split("||")[1];
+async function processTKTData(data: any): Promise<ProcessedData> {
+  const id = randomUUID();
+  const fields = data.embeds[0].fields;
+  const proxy = fields[4].value.split("||")[1];
+  const link = fields[6].value.split("||")[1];
+  const timestamp = Date.now();
+
+  await sql`INSERT INTO "TKT Records" (id, bot, proxy, timestamp) VALUES (${id}, ${"TKT"}, ${proxy}, ${new Date(timestamp).toISOString()})`;
 
   return {
-    id: randomUUID(),
+    id,
     bot_name: "TKT",
     link,
     click_count: 0,
-    timestamp: Date.now(),
+    timestamp,
   };
 }
 
-export function processData(data: any): ProcessedData | null {
+export async function processData(data: any): Promise<ProcessedData | null> {
   const title = data.embeds?.[0]?.title;
 
   switch (title) {
@@ -53,7 +60,7 @@ export function processData(data: any): ProcessedData | null {
     case "PASSED QUEUE":
       return processOWData(data);
     case "--Queue SUCCESS--":
-      return processTKTData(data);
+      return await processTKTData(data);
     default:
       return null;
   }

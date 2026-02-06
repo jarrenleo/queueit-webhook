@@ -149,7 +149,7 @@ app.post("/auth", async (c) => {
 // POST /webhook - Receive new webhook data
 app.post("/webhook", async (c) => {
   const data = await c.req.json();
-  const processedData = processData(data);
+  const processedData = await processData(data);
   if (!processedData) return c.json({ success: true }, 201);
 
   // Store in Redis (push to front so newest is first)
