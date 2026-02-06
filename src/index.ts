@@ -20,6 +20,7 @@ const ITEMS_ORDER_KEY = "items:order"; // Array of IDs (newest -> oldest)
 
 const CLEANUP_INTERVAL = 60 * 1000;
 const MAX_DATA_COUNT = 30;
+const FIVE_MINUTES = 5 * 60 * 1000;
 
 // Connected SSE clients
 const clients: Set<(data: string, event: string) => void> = new Set();
@@ -70,10 +71,8 @@ async function cleanup() {
     // Parse the newest webhook's data
     const newestItem: ProcessedData = JSON.parse(newestItemData);
 
-    const tenMinutes = 10 * 60 * 1000;
-
-    // Check if newest webhook is older than 10 minutes
-    if (Date.now() - newestItem.timestamp <= tenMinutes) return;
+    // Check if newest webhook is older than 5 minutes
+    if (Date.now() - newestItem.timestamp <= FIVE_MINUTES) return;
     // Clear everything
     await redis.del(ITEMS_DATA_KEY);
     await redis.del(ITEMS_ORDER_KEY);
