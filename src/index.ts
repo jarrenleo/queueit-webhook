@@ -128,6 +128,15 @@ app.get("/sse", (c) => {
   });
 });
 
+// POST /auth - Verify access PIN
+app.post("/auth", async (c) => {
+  const { pin } = await c.req.json();
+
+  if (pin !== process.env.ACCESS_PIN) return c.json({ success: false }, 401);
+
+  return c.json({ success: true });
+});
+
 // POST /webhook - Receive new webhook data
 app.post("/webhook", async (c) => {
   const data = await c.req.json();
